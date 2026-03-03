@@ -31,6 +31,7 @@ class Game {
       new Enemy(this.scene, this.player, this.world),
       new Enemy(this.scene, this.player, this.world)
     ];
+    this.enemies.forEach(e => this.world.collidableObjects.push(e.mesh));
 
     this.clock = new THREE.Clock();
     this.initLights();

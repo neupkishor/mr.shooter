@@ -132,6 +132,9 @@ export class Player {
         this.camera.position.addScaledVector(forward, this.velocity.z * delta);
         this.camera.position.y += (this.velocity.y * delta);
 
+        // Collision Detection
+        this.checkCollisions();
+
         if (this.camera.position.y < 2) {
             this.velocity.y = 0;
             this.camera.position.y = 2;
@@ -145,5 +148,36 @@ export class Player {
         if (pos.x < -boundary) pos.x = -boundary;
         if (pos.z > boundary) pos.z = boundary;
         if (pos.z < -boundary) pos.z = -boundary;
+    }
+
+    checkCollisions() {
+        const playerRadius = 1.0;
+        const playerPos = this.camera.position;
+
+        this.world.collidableObjects.forEach(obj => {
+            // Simple AABB vs Point/Sphere collision
+            const box = new THREE.Box3().setFromObject(obj);
+
+            // Check if player is inside the box (roughly)
+            if (box.containsPoint(playerPos) || box.distanceToPoint(playerPos) < playerRadius) {
+                // Get vector from center of box to player
+                const boxCenter = new THREE.Vector3();
+                box.getCenter(boxCenter);
+
+                const diff = new THREE.Vector3().subVectors(playerPos, boxCenter);
+                // Push player out based on which axis they are closest to the edge
+                const size = new THREE.Vector3();
+                box.getSize(size);
+
+                const overlapX = (size.x / 2 + playerRadius) - Math.abs(diff.x);
+                const overlapZ = (size.z / 2 + playerRadius) - Math.abs(diff.z);
+
+                if (overlapX < overlapZ) {
+                    playerPos.x += Math.sign(diff.x) * overlapX;
+                } else {
+                    playerPos.z += Math.sign(diff.z) * overlapZ;
+                }
+            }
+        });
     }
 }

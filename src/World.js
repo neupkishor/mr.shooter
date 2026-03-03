@@ -4,6 +4,7 @@ export class World {
     constructor(scene) {
         this.scene = scene;
         this.targets = [];
+        this.collidableObjects = [];
         this.init();
     }
 
@@ -29,6 +30,7 @@ export class World {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             this.scene.add(mesh);
+            this.collidableObjects.push(mesh);
         }
     }
 
@@ -68,6 +70,7 @@ export class World {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             this.scene.add(mesh);
+            this.collidableObjects.push(mesh);
         });
     }
 
