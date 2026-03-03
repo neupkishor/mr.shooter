@@ -17,6 +17,8 @@ export class Player {
         this.moveRight = false;
         this.canJump = false;
         this.ammo = 30;
+        this.health = 100;
+        this.isDead = false;
 
         this.weapon = new Weapon(this.camera, this.scene);
         this.raycaster = new THREE.Raycaster();
@@ -85,6 +87,7 @@ export class Player {
             }
             if (obj.userData.isEnemy) {
                 obj.userData.parent.die();
+                this.heal(10); // Reward HP on kill
                 const scoreElement = document.getElementById('score');
                 scoreElement.innerText = parseInt(scoreElement.innerText) + 50;
                 break;
@@ -179,5 +182,34 @@ export class Player {
                 }
             }
         });
+    }
+
+    takeDamage(amount) {
+        if (this.isDead) return;
+
+        this.health -= amount;
+        this.health = Math.max(0, this.health);
+        this.updateHealthUI();
+
+        if (this.health <= 0) {
+            this.die();
+        }
+    }
+
+    heal(amount) {
+        if (this.isDead) return;
+        this.health = Math.min(100, this.health + amount);
+        this.updateHealthUI();
+    }
+
+    updateHealthUI() {
+        const healthBar = document.getElementById('health-bar');
+        const healthText = document.getElementById('health-text');
+        if (healthBar) healthBar.style.width = `${this.health}%`;
+        if (healthText) healthText.innerText = `HP: ${Math.ceil(this.health)}`;
+    }
+
+    die() {
+        this.isDead = true;
     }
 }

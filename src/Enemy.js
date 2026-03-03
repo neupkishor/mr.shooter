@@ -10,6 +10,7 @@ export class Enemy {
         this.isDead = false;
         this.shootTimer = 0;
         this.respawnTimer = 0;
+        this.raycaster = new THREE.Raycaster();
 
         this.init();
     }
@@ -87,27 +88,50 @@ export class Enemy {
     }
 
     shoot() {
-        // Visual laser effect
+        const playerPos = this.player.camera.position;
+        const enemyHeadPos = this.mesh.position.clone();
+        enemyHeadPos.y = 1.5;
+
+        const direction = new THREE.Vector3().subVectors(playerPos, enemyHeadPos).normalize();
+        this.raycaster.set(enemyHeadPos, direction);
+
+        const intersects = this.raycaster.intersectObjects(this.scene.children);
+        let canHit = false;
+        let blockedDist = Infinity;
+
+        for (const intersect of intersects) {
+            // Check if any environment object blocks the shot
+            if (this.world.collidableObjects.includes(intersect.object) && intersect.object !== this.mesh) {
+                blockedDist = intersect.distance;
+                break;
+            }
+        }
+
+        const distToPlayer = enemyHeadPos.distanceTo(playerPos);
+        if (distToPlayer < blockedDist) {
+            canHit = true;
+            this.player.takeDamage(5);
+        }
+
+        // Laser visual
+        const laserLen = Math.min(distToPlayer, blockedDist);
         const laserGeo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, -this.mesh.position.distanceTo(this.player.camera.position))
+            new THREE.Vector3(0, 0, -laserLen)
         ]);
-        const laserMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const laserMat = new THREE.LineBasicMaterial({ color: canHit ? 0xff0000 : 0x550000 });
         const laser = new THREE.Line(laserGeo, laserMat);
 
-        laser.position.copy(this.mesh.position);
-        laser.lookAt(this.player.camera.position);
+        laser.position.copy(enemyHeadPos);
+        laser.lookAt(playerPos);
         this.scene.add(laser);
 
-        // Player HUD Feedback
-        const hud = document.getElementById('hud');
-        hud.style.boxShadow = 'inset 0 0 50px rgba(255, 0, 0, 0.5)';
+        if (canHit) {
+            const hud = document.getElementById('hud');
+            hud.style.boxShadow = 'inset 0 0 50px rgba(255, 0, 0, 0.5)';
+            setTimeout(() => { if (hud) hud.style.boxShadow = 'none'; }, 100);
+        }
 
-        setTimeout(() => {
-            this.scene.remove(laser);
-            hud.style.boxShadow = 'none';
-        }, 100);
-
-        console.log("Enemy shoots at player!");
+        setTimeout(() => this.scene.remove(laser), 100);
     }
 }
