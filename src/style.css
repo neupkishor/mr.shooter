@@ -157,3 +157,22 @@ span {
   font-weight: bold;
   color: #fff;
 }
+
+#stats-right {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 18px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 15px;
+  border-radius: 8px;
+  border-right: 4px solid #0ff;
+  color: #0ff;
+  pointer-events: none;
+  text-align: right;
+  font-family: monospace;
+}
+
+#stats-right div {
+  margin: 5px 0;
+}

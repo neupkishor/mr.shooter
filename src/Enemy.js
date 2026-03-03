@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 export class Enemy {
-    constructor(scene, player, world) {
+    constructor(scene, player, world, level = 1) {
         this.scene = scene;
         this.player = player;
         this.world = world;
+        this.level = level;
 
         this.mesh = null;
         this.isDead = false;
@@ -12,11 +13,15 @@ export class Enemy {
         this.respawnTimer = 0;
         this.raycaster = new THREE.Raycaster();
 
+        // Level Scaling
+        this.baseShootInterval = Math.max(0.5, 3.0 - (this.level * 0.1));
+        this.baseRespawnTime = Math.max(3, 10 - (this.level * 0.35));
+        this.accuracy = Math.min(1.0, 0.7 + (this.level * 0.015)); // Starts at 70% accuracy (30% miss)
+
         this.init();
     }
 
     init() {
-        // Red enemy character
         const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
         const material = new THREE.MeshStandardMaterial({ color: 0xff3333 });
         this.mesh = new THREE.Mesh(geometry, material);
@@ -45,15 +50,7 @@ export class Enemy {
         this.isDead = true;
         this.scene.remove(this.mesh);
         this.world.collidableObjects = this.world.collidableObjects.filter(obj => obj !== this.mesh);
-        this.respawnTimer = 10;
-
-        const countdownInterval = setInterval(() => {
-            if (this.respawnTimer <= 0) {
-                clearInterval(countdownInterval);
-                return;
-            }
-            console.log(`Enemy respawning in ${Math.ceil(this.respawnTimer)}s`);
-        }, 1000);
+        this.respawnTimer = this.baseRespawnTime;
     }
 
     update(delta) {
@@ -68,20 +65,17 @@ export class Enemy {
         const playerPos = this.player.camera.position;
         const distance = this.mesh.position.distanceTo(playerPos);
 
-        // Move towards player if not too close
         if (distance > 5) {
             const direction = new THREE.Vector3().subVectors(playerPos, this.mesh.position);
-            direction.y = 0; // stay on ground
+            direction.y = 0;
             direction.normalize();
-            this.mesh.position.addScaledVector(direction, 4 * delta); // Slow chase speed
+            this.mesh.position.addScaledVector(direction, (4 + (this.level * 0.2)) * delta);
         }
 
-        // Face player
         this.mesh.lookAt(playerPos.x, 1.5, playerPos.z);
 
-        // Shooting logic
         this.shootTimer += delta;
-        if (this.shootTimer > 2 + Math.random() * 2) {
+        if (this.shootTimer > this.baseShootInterval + (Math.random() * 1.0)) {
             this.shoot();
             this.shootTimer = 0;
         }
@@ -92,7 +86,17 @@ export class Enemy {
         const enemyHeadPos = this.mesh.position.clone();
         enemyHeadPos.y = 1.5;
 
-        const direction = new THREE.Vector3().subVectors(playerPos, enemyHeadPos).normalize();
+        // Accuracy Check: Does the enemy aim correctly?
+        const misAimOffset = (1.0 - this.accuracy) * 2.0;
+        const targetPoint = playerPos.clone();
+        if (Math.random() > this.accuracy) {
+            // Apply slight random offset to miss the player
+            targetPoint.x += (Math.random() - 0.5) * misAimOffset;
+            targetPoint.y += (Math.random() - 0.5) * misAimOffset;
+            targetPoint.z += (Math.random() - 0.5) * misAimOffset;
+        }
+
+        const direction = new THREE.Vector3().subVectors(targetPoint, enemyHeadPos).normalize();
         this.raycaster.set(enemyHeadPos, direction);
 
         const intersects = this.raycaster.intersectObjects(this.scene.children);
@@ -100,21 +104,24 @@ export class Enemy {
         let blockedDist = Infinity;
 
         for (const intersect of intersects) {
-            // Check if any environment object blocks the shot
             if (this.world.collidableObjects.includes(intersect.object) && intersect.object !== this.mesh) {
                 blockedDist = intersect.distance;
                 break;
             }
         }
 
-        const distToPlayer = enemyHeadPos.distanceTo(playerPos);
-        if (distToPlayer < blockedDist) {
+        // Check if we hit the player (or would have if targetPoint was perfect)
+        const distToRealPlayer = enemyHeadPos.distanceTo(playerPos);
+        const distToTargetPoint = enemyHeadPos.distanceTo(targetPoint);
+
+        // If the shot is clear AND targetPoint is close enough to player to count as hit
+        if (distToTargetPoint < blockedDist && targetPoint.distanceTo(playerPos) < 1.0) {
             canHit = true;
             this.player.takeDamage(5);
         }
 
         // Laser visual
-        const laserLen = Math.min(distToPlayer, blockedDist);
+        const laserLen = Math.min(distToTargetPoint, blockedDist);
         const laserGeo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, 0, 0),
             new THREE.Vector3(0, 0, -laserLen)
@@ -123,13 +130,15 @@ export class Enemy {
         const laser = new THREE.Line(laserGeo, laserMat);
 
         laser.position.copy(enemyHeadPos);
-        laser.lookAt(playerPos);
+        laser.lookAt(targetPoint);
         this.scene.add(laser);
 
         if (canHit) {
             const hud = document.getElementById('hud');
-            hud.style.boxShadow = 'inset 0 0 50px rgba(255, 0, 0, 0.5)';
-            setTimeout(() => { if (hud) hud.style.boxShadow = 'none'; }, 100);
+            if (hud) {
+                hud.style.boxShadow = 'inset 0 0 50px rgba(255, 0, 0, 0.5)';
+                setTimeout(() => { if (hud) hud.style.boxShadow = 'none'; }, 100);
+            }
         }
 
         setTimeout(() => this.scene.remove(laser), 100);

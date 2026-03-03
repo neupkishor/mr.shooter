@@ -34,6 +34,7 @@ class Game {
 
     this.clock = new THREE.Clock();
     this.gameState = 'START';
+    this.currentLevel = 1;
     this.timeSurvived = 0;
 
     this.initLights();
@@ -62,7 +63,7 @@ class Game {
     });
 
     restartBtn.addEventListener('click', () => {
-      location.reload(); // Simplest way to restart
+      location.reload();
     });
 
     this.controls.addEventListener('lock', () => {
@@ -73,9 +74,7 @@ class Game {
     });
 
     this.controls.addEventListener('unlock', () => {
-      if (this.gameState === 'PLAYING') {
-        // Pause logic could go here
-      }
+      // Pause or menu
     });
 
     window.addEventListener('resize', () => {
@@ -92,8 +91,28 @@ class Game {
       const delta = this.clock.getDelta();
       this.timeSurvived += delta;
 
+      // Check for Level Up: Every 200 points
+      const currentScore = parseInt(document.getElementById('score').innerText);
+      const targetLevel = Math.min(20, Math.floor(currentScore / 200) + 1);
+
+      if (targetLevel > this.currentLevel) {
+        this.updateLevel(targetLevel);
+      }
+
       this.player.update(delta);
       this.enemies.forEach(enemy => enemy.update(delta));
+
+      // Update Right Side Stats
+      const enemiesAlive = this.enemies.filter(e => !e.isDead).length;
+      const enemyAliveEl = document.getElementById('enemy-alive');
+      const enemyCountEl = document.getElementById('enemy-count');
+      const spawnRateEl = document.getElementById('spawn-rate');
+
+      if (enemyAliveEl) enemyAliveEl.innerText = enemiesAlive;
+      if (enemyCountEl) enemyCountEl.innerText = this.enemies.length;
+      if (spawnRateEl && this.enemies.length > 0) {
+        spawnRateEl.innerText = this.enemies[0].baseRespawnTime.toFixed(1);
+      }
 
       if (this.player.isDead) {
         this.gameOver();
@@ -101,6 +120,30 @@ class Game {
     }
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  updateLevel(newLevel) {
+    this.currentLevel = newLevel;
+    const levelDisplay = document.getElementById('level');
+    if (levelDisplay) levelDisplay.innerText = newLevel;
+
+    // Scale existing enemies
+    this.enemies.forEach(enemy => {
+      enemy.level = newLevel;
+      enemy.baseShootInterval = Math.max(0.5, 3.0 - (newLevel * 0.1));
+      enemy.baseRespawnTime = Math.max(3, 10 - (newLevel * 0.35));
+      enemy.accuracy = Math.min(1.0, 0.7 + (newLevel * 0.015));
+    });
+
+    // Add more enemies every 4 levels
+    const targetCount = 2 + Math.floor((newLevel - 1) / 4);
+    while (this.enemies.length < targetCount) {
+      const enemy = new Enemy(this.scene, this.player, this.world, newLevel);
+      this.enemies.push(enemy);
+      this.world.collidableObjects.push(enemy.mesh);
+    }
+
+    console.log(`Leveled Up to ${newLevel}!`);
   }
 
   gameOver() {
