@@ -4,7 +4,8 @@ import { audioManager } from './AudioManager';
 export const WEAPON_TYPES = {
     PISTOL: { name: 'Pistol', range: 50, color: 0x333333, size: [0.15, 0.15, 0.6] },
     SNIPER: { name: 'Sniper', range: 150, color: 0x111111, size: [0.1, 0.1, 1.2] },
-    SHOTGUN: { name: 'Shotgun', range: 20, color: 0x444444, size: [0.2, 0.2, 0.8] }
+    SHOTGUN: { name: 'Shotgun', range: 20, color: 0x444444, size: [0.2, 0.2, 0.8] },
+    MACHINE_GUN: { name: 'Machine Gun', range: 100, color: 0xff00ff, size: [0.2, 0.2, 1.0] }
 };
 
 export class Weapon {

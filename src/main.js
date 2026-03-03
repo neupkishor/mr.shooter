@@ -38,6 +38,9 @@ class Game {
     this.timeSurvived = 0;
     this.pickups = [];
     this.pickupSpawnTimer = 0;
+    this.machineGunSpawnTimer = 0;
+    this.machineGunActiveTimer = 0;
+    this.activeMachineGun = null;
 
     this.initLights();
     this.setupEventListeners();
@@ -116,6 +119,21 @@ class Game {
     this.pickups.push(pickup);
   }
 
+  spawnMachineGun() {
+    const mgGeo = new THREE.TorusGeometry(1, 0.2, 8, 24);
+    const mgMat = new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 1 });
+    const mesh = new THREE.Mesh(mgGeo, mgMat);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.set((Math.random() - 0.5) * 60, 1, (Math.random() - 0.5) * 60);
+    this.scene.add(mesh);
+
+    this.activeMachineGun = {
+      mesh: mesh,
+      expires: Date.now() + 10000
+    };
+    this.showNotification("MACHINE GUN SPAWNED!");
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
 
@@ -133,12 +151,43 @@ class Game {
 
       // Handle Pickups
       this.pickupSpawnTimer += delta;
-      if (this.pickupSpawnTimer > 15) { // Spawn every 15 seconds
+      if (this.pickupSpawnTimer > 15) {
         this.spawnPickup();
         this.pickupSpawnTimer = 0;
       }
 
+      // Handle Machine Gun
+      this.machineGunSpawnTimer += delta;
+      if (this.machineGunSpawnTimer > 60 && !this.activeMachineGun && !this.player.isMachineGunMode) {
+        this.spawnMachineGun();
+        this.machineGunSpawnTimer = 0;
+      }
+
       const now = Date.now();
+
+      if (this.activeMachineGun) {
+        // Pulse the machine gun
+        this.activeMachineGun.mesh.scale.setScalar(1 + Math.sin(now / 100) * 0.2);
+
+        if (now > this.activeMachineGun.expires) {
+          this.scene.remove(this.activeMachineGun.mesh);
+          this.activeMachineGun = null;
+        } else if (this.activeMachineGun.mesh.position.distanceTo(this.camera.position) < 3) {
+          this.player.setMachineGunMode(true);
+          this.machineGunActiveTimer = 20; // 20 seconds duration
+          this.scene.remove(this.activeMachineGun.mesh);
+          this.activeMachineGun = null;
+          this.showNotification("MACHINE GUN ACTIVE!");
+        }
+      }
+
+      if (this.player.isMachineGunMode) {
+        this.machineGunActiveTimer -= delta;
+        if (this.machineGunActiveTimer <= 0 || this.player.machineGunBullets <= 0) {
+          this.player.setMachineGunMode(false);
+          this.showNotification("No Machine Gun, Back Human");
+        }
+      }
       this.pickups = this.pickups.filter(p => {
         // Check expiration
         if (now > p.expires) {
@@ -216,6 +265,10 @@ class Game {
     if (nearPickup) {
       canvas.style.borderColor = '#ffff00';
       canvas.style.boxShadow = '0 0 20px rgba(255, 255, 0, 0.8)';
+    } else if (this.activeMachineGun && Math.floor(now / 200) % 2 === 0) {
+      // Blinking minimap for Machine Gun
+      canvas.style.borderColor = '#ff00ff';
+      canvas.style.boxShadow = '0 0 30px rgba(255, 0, 255, 1)';
     } else {
       canvas.style.borderColor = '#0ff';
       canvas.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.3)';
@@ -224,6 +277,18 @@ class Game {
     // Draw Player (Green Dot)
     const px = this.camera.position.x;
     const pz = this.camera.position.z;
+
+    // Draw Machine Gun Object on Map
+    if (this.activeMachineGun) {
+      const mx = this.activeMachineGun.mesh.position.x;
+      const mz = this.activeMachineGun.mesh.position.z;
+      const relX = (mx - px) * scale;
+      const relZ = (mz - pz) * scale;
+      ctx.fillStyle = '#ff00ff';
+      ctx.beginPath();
+      ctx.arc(center + relX, center + relZ, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Draw all enemies
     this.enemies.forEach(enemy => {

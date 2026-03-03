@@ -24,6 +24,12 @@ export class Player {
         this.weapon = new Weapon(this.camera, this.scene);
         this.raycaster = new THREE.Raycaster();
 
+        this.isMachineGunMode = false;
+        this.machineGunTimer = 0;
+        this.machineGunBullets = 0;
+        this.lastShotTime = 0;
+        this.isMouseDown = false;
+
         this.setupControls();
     }
 
@@ -62,17 +68,28 @@ export class Player {
 
         document.addEventListener('mousedown', () => {
             if (this.controls.isLocked) {
-                this.shoot();
+                this.isMouseDown = true;
+                if (!this.isMachineGunMode) this.shoot();
             }
+        });
+
+        document.addEventListener('mouseup', () => {
+            this.isMouseDown = false;
         });
     }
 
     shoot() {
-        if (this.ammo <= 0) return;
+        if (!this.isMachineGunMode && this.ammo <= 0) return;
 
         this.weapon.shoot();
-        this.ammo--;
-        document.getElementById('ammo').innerText = this.ammo;
+
+        if (this.isMachineGunMode) {
+            this.machineGunBullets--;
+            audioManager.playMachineGun();
+        } else {
+            this.ammo--;
+            document.getElementById('ammo').innerText = this.ammo;
+        }
 
         // Shoot towards center with range limit
         this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
@@ -109,6 +126,16 @@ export class Player {
         }, 100);
     }
 
+    setMachineGunMode(active) {
+        this.isMachineGunMode = active;
+        if (active) {
+            this.machineGunBullets = 100 * 5; // 500 bullets total
+            this.weapon.switchWeapon(WEAPON_TYPES.MACHINE_GUN);
+        } else {
+            this.weapon.switchWeapon(WEAPON_TYPES.PISTOL);
+        }
+    }
+
     update(delta) {
         delta = Math.min(delta, 0.1);
         if (delta === 0) delta = 0.016;
@@ -138,6 +165,15 @@ export class Player {
 
         // Collision Detection
         this.checkCollisions();
+
+        // Machine Gun Auto-fire
+        if (this.isMachineGunMode && this.isMouseDown) {
+            const now = performance.now();
+            if (now - this.lastShotTime > 250) { // 0.25s interval
+                this.shoot();
+                this.lastShotTime = now;
+            }
+        }
 
         if (this.camera.position.y < 2) {
             this.velocity.y = 0;

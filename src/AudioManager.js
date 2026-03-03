@@ -37,6 +37,10 @@ export class AudioManager {
         this._playNoise(0.1, 0.2, 100, 10, 'sine');
     }
 
+    playMachineGun() {
+        this._playNoise(0.08, 0.1, 300, 100, 'square');
+    }
+
     _playNoise(volume, duration, freqStart, freqEnd, type) {
         const ctx = this._init();
         if (!ctx) return;
