@@ -94,6 +94,7 @@ export class World {
 
         this.scene.add(box);
         this.targets.push(box);
+        this.collidableObjects.push(box);
     }
 
     getRandomColor() {
@@ -104,6 +105,7 @@ export class World {
     removeTarget(target) {
         this.scene.remove(target);
         this.targets = this.targets.filter(t => t !== target);
+        this.collidableObjects = this.collidableObjects.filter(obj => obj !== target);
         // Respawn after a delay
         setTimeout(() => this.spawnTarget(), 2000);
     }

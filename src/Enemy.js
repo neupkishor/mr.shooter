@@ -27,17 +27,23 @@ export class Enemy {
 
     spawn() {
         this.isDead = false;
+        const radius = 30 + Math.random() * 20;
+        const angle = Math.random() * Math.PI * 2;
         this.mesh.position.set(
-            (Math.random() - 0.5) * 80,
-            1,
-            (Math.random() - 0.5) * 80
+            Math.cos(angle) * radius,
+            1.5,
+            Math.sin(angle) * radius
         );
         this.scene.add(this.mesh);
+        if (!this.world.collidableObjects.includes(this.mesh)) {
+            this.world.collidableObjects.push(this.mesh);
+        }
     }
 
     die() {
         this.isDead = true;
         this.scene.remove(this.mesh);
+        this.world.collidableObjects = this.world.collidableObjects.filter(obj => obj !== this.mesh);
         this.respawnTimer = 10;
 
         const countdownInterval = setInterval(() => {
@@ -58,20 +64,50 @@ export class Enemy {
             return;
         }
 
-        // Face player
-        this.mesh.lookAt(this.player.camera.position.x, 1, this.player.camera.position.z);
+        const playerPos = this.player.camera.position;
+        const distance = this.mesh.position.distanceTo(playerPos);
 
-        // Simple shooting logic
+        // Move towards player if not too close
+        if (distance > 5) {
+            const direction = new THREE.Vector3().subVectors(playerPos, this.mesh.position);
+            direction.y = 0; // stay on ground
+            direction.normalize();
+            this.mesh.position.addScaledVector(direction, 4 * delta); // Slow chase speed
+        }
+
+        // Face player
+        this.mesh.lookAt(playerPos.x, 1.5, playerPos.z);
+
+        // Shooting logic
         this.shootTimer += delta;
-        if (this.shootTimer > 3) { // Shoot every 3 seconds
+        if (this.shootTimer > 2 + Math.random() * 2) {
             this.shoot();
             this.shootTimer = 0;
         }
     }
 
     shoot() {
-        // Simple visual bullet or effect
+        // Visual laser effect
+        const laserGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, -this.mesh.position.distanceTo(this.player.camera.position))
+        ]);
+        const laserMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const laser = new THREE.Line(laserGeo, laserMat);
+
+        laser.position.copy(this.mesh.position);
+        laser.lookAt(this.player.camera.position);
+        this.scene.add(laser);
+
+        // Player HUD Feedback
+        const hud = document.getElementById('hud');
+        hud.style.boxShadow = 'inset 0 0 50px rgba(255, 0, 0, 0.5)';
+
+        setTimeout(() => {
+            this.scene.remove(laser);
+            hud.style.boxShadow = 'none';
+        }, 100);
+
         console.log("Enemy shoots at player!");
-        // We could implement player health here later
     }
 }
