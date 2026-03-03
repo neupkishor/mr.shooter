@@ -42,8 +42,14 @@ class Game {
     this.machineGunActiveTimer = 0;
     this.activeMachineGun = null;
 
+    // Difficulty and Scores
+    this.difficulty = localStorage.getItem('funny_shooter_difficulty') || 'medium';
+    this.highScores = JSON.parse(localStorage.getItem('funny_shooter_scores')) || [];
+
     this.initLights();
     this.setupEventListeners();
+    this.updateLeaderboardUI();
+    this.updateDifficultyUI();
     this.animate();
   }
 
@@ -56,36 +62,94 @@ class Game {
   }
 
   setupEventListeners() {
-    const startBtn = document.getElementById('start-button');
-    const restartBtn = document.getElementById('restart-button');
-    const startScreen = document.getElementById('start-screen');
-    const gameOverScreen = document.getElementById('game-over-screen');
-
-    startBtn.addEventListener('click', () => {
-      this.gameState = 'PLAYING';
-      startScreen.style.display = 'none';
-      this.controls.lock();
+    // Menu Buttons
+    document.getElementById('start-mission-btn').addEventListener('click', () => this.startGame());
+    document.getElementById('open-settings-btn').addEventListener('click', () => {
+      document.getElementById('main-menu').style.display = 'none';
+      document.getElementById('settings-screen').style.display = 'flex';
+    });
+    document.getElementById('back-to-menu-btn').addEventListener('click', () => {
+      document.getElementById('settings-screen').style.display = 'none';
+      document.getElementById('main-menu').style.display = 'flex';
+    });
+    document.getElementById('restart-button').addEventListener('click', () => {
+      location.reload();
+    });
+    document.getElementById('menu-from-death-btn').addEventListener('click', () => {
+      location.reload(); // Simplest way to reset for now
     });
 
-    restartBtn.addEventListener('click', () => {
-      location.reload();
+    // Difficulty Buttons
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.difficulty = e.target.dataset.level;
+        localStorage.setItem('funny_shooter_difficulty', this.difficulty);
+        this.updateDifficultyUI();
+      });
     });
 
     this.controls.addEventListener('lock', () => {
       if (this.gameState === 'PLAYING') {
-        startScreen.style.display = 'none';
-        gameOverScreen.style.display = 'none';
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('game-over-screen').style.display = 'none';
       }
-    });
-
-    this.controls.addEventListener('unlock', () => {
-      // Pause or menu
     });
 
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  }
+
+  updateDifficultyUI() {
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.level === this.difficulty);
+    });
+  }
+
+  updateLeaderboardUI() {
+    const list = document.getElementById('high-scores-list');
+    if (this.highScores.length === 0) {
+      list.innerHTML = '<li>NONE YET</li>';
+      return;
+    }
+    list.innerHTML = this.highScores
+      .sort((a, b) => b - a)
+      .slice(0, 5)
+      .map(score => `<li><span>PTS</span> <span>${score}</span></li>`)
+      .join('');
+  }
+
+  saveScore(score) {
+    this.highScores.push(score);
+    this.highScores = this.highScores.sort((a, b) => b - a).slice(0, 10);
+    localStorage.setItem('funny_shooter_scores', JSON.stringify(this.highScores));
+    this.updateLeaderboardUI();
+  }
+
+  startGame() {
+    this.gameState = 'PLAYING';
+    document.getElementById('main-menu').style.display = 'none';
+    this.controls.lock();
+
+    // Apply difficulty modifiers
+    let hpMod = 1.0;
+    if (this.difficulty === 'easy') hpMod = 1.5;
+    if (this.difficulty === 'hard') hpMod = 0.7;
+
+    this.player.health = 100 * hpMod;
+    this.player.updateHealthUI();
+
+    // Scale enemies based on difficulty
+    this.enemies.forEach(enemy => {
+      if (this.difficulty === 'easy') {
+        enemy.baseShootInterval *= 1.5;
+        enemy.accuracy *= 0.8;
+      } else if (this.difficulty === 'hard') {
+        enemy.baseShootInterval *= 0.7;
+        enemy.accuracy = Math.min(1.0, enemy.accuracy * 1.2);
+      }
     });
   }
 
@@ -250,7 +314,8 @@ class Game {
     const ctx = canvas.getContext('2d');
     const size = canvas.width = canvas.height = 150;
     const center = size / 2;
-    const scale = 1.0; // 1 unit in 3D = 1 pixel on map (zoomed in)
+    const scale = 1.0;
+    const now = Date.now();
 
     ctx.clearRect(0, 0, size, size);
 
@@ -377,8 +442,11 @@ class Game {
     this.gameState = 'GAMEOVER';
     this.controls.unlock();
 
+    const score = parseInt(document.getElementById('score').innerText);
+    this.saveScore(score);
+
     document.getElementById('game-over-screen').style.display = 'flex';
-    document.getElementById('final-score').innerText = document.getElementById('score').innerText;
+    document.getElementById('final-score').innerText = score;
     document.getElementById('final-time').innerText = Math.floor(this.timeSurvived);
   }
 }
