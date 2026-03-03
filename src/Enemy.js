@@ -16,7 +16,8 @@ export class Enemy {
         // Level Scaling
         this.baseShootInterval = Math.max(0.5, 3.0 - (this.level * 0.1));
         this.baseRespawnTime = Math.max(3, 10 - (this.level * 0.35));
-        this.accuracy = Math.min(1.0, 0.7 + (this.level * 0.015)); // Starts at 70% accuracy (30% miss)
+        this.accuracy = Math.min(1.0, 0.7 + (this.level * 0.015));
+        this.maxRange = 40 + (this.level * 0.5); // Enemies can only shoot within this distance
 
         this.init();
     }
@@ -114,13 +115,13 @@ export class Enemy {
         const distToRealPlayer = enemyHeadPos.distanceTo(playerPos);
         const distToTargetPoint = enemyHeadPos.distanceTo(targetPoint);
 
-        // If the shot is clear AND targetPoint is close enough to player to count as hit
-        if (distToTargetPoint < blockedDist && targetPoint.distanceTo(playerPos) < 1.0) {
+        // If the shot is clear AND targetPoint hit player AND within max shooting range
+        if (distToTargetPoint < blockedDist && targetPoint.distanceTo(playerPos) < 1.0 && distToRealPlayer < this.maxRange) {
             canHit = true;
             this.player.takeDamage(5);
         }
 
-        // Laser visual
+        // Laser visual length limited by maxRange and obstacles
         const laserLen = Math.min(distToTargetPoint, blockedDist);
         const laserGeo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, 0, 0),

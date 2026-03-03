@@ -120,6 +120,65 @@ class Game {
     }
 
     this.renderer.render(this.scene, this.camera);
+    this.drawMinimap();
+  }
+
+  drawMinimap() {
+    const canvas = document.getElementById('minimap');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const size = canvas.width = canvas.height = 150;
+    const center = size / 2;
+    const scale = 1.0; // 1 unit in 3D = 1 pixel on map (zoomed in)
+
+    ctx.clearRect(0, 0, size, size);
+
+    // Draw Player (Green Dot)
+    const px = this.camera.position.x;
+    const pz = this.camera.position.z;
+
+    // Draw all enemies
+    this.enemies.forEach(enemy => {
+      if (enemy.isDead) return;
+
+      const dist = enemy.mesh.position.distanceTo(this.camera.position);
+
+      // ONLY SHOW ENEMIES IN THEIR ATTACK RANGE
+      if (dist <= enemy.maxRange) {
+        const ex = enemy.mesh.position.x;
+        const ez = enemy.mesh.position.z;
+
+        // Coordinates relative to player
+        const relX = (ex - px) * scale;
+        const relZ = (ez - pz) * scale;
+
+        // Draw Red Dot
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(center + relX, center + relZ, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Subtle pulse for enemies in range
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    });
+
+    // Draw Player Center Dot
+    ctx.fillStyle = '#00ff00';
+    ctx.beginPath();
+    ctx.arc(center, center, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw View Direction Cone
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    const angle = this.camera.rotation.y;
+    ctx.beginPath();
+    ctx.moveTo(center, center);
+    ctx.lineTo(center - Math.sin(angle) * 15, center - Math.cos(angle) * 15);
+    ctx.stroke();
   }
 
   updateLevel(newLevel) {
