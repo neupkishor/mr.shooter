@@ -36,6 +36,8 @@ class Game {
     this.gameState = 'START';
     this.currentLevel = 1;
     this.timeSurvived = 0;
+    this.pickups = [];
+    this.pickupSpawnTimer = 0;
 
     this.initLights();
     this.setupEventListeners();
@@ -84,6 +86,36 @@ class Game {
     });
   }
 
+  spawnPickup() {
+    const isHealth = Math.random() > 0.5;
+    const type = isHealth ? 'health' : 'ammo';
+    const color = isHealth ? 0x00ff00 : 0xffff00;
+
+    // Rectangular crate shape
+    const pickupGeo = new THREE.BoxGeometry(1.2, 0.8, 0.6);
+    const pickupMat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5 });
+    const mesh = new THREE.Mesh(pickupGeo, pickupMat);
+
+    // Position on ground at a random location
+    mesh.position.set(
+      (Math.random() - 0.5) * 80,
+      0.4,
+      (Math.random() - 0.5) * 80
+    );
+
+    this.scene.add(mesh);
+
+    const pickup = {
+      mesh: mesh,
+      type: type,
+      expires: Date.now() + 10000,
+      moveDir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+      moveSpeed: 2 + Math.random() * 3
+    };
+
+    this.pickups.push(pickup);
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
 
@@ -98,6 +130,46 @@ class Game {
       if (targetLevel > this.currentLevel) {
         this.updateLevel(targetLevel);
       }
+
+      // Handle Pickups
+      this.pickupSpawnTimer += delta;
+      if (this.pickupSpawnTimer > 15) { // Spawn every 15 seconds
+        this.spawnPickup();
+        this.pickupSpawnTimer = 0;
+      }
+
+      const now = Date.now();
+      this.pickups = this.pickups.filter(p => {
+        // Check expiration
+        if (now > p.expires) {
+          this.scene.remove(p.mesh);
+          return false;
+        }
+
+        // Ground Movement (Wandering)
+        p.mesh.position.addScaledVector(p.moveDir, p.moveSpeed * delta);
+        p.mesh.rotation.y += delta;
+
+        // Simple boundary check for wandering pickups
+        if (Math.abs(p.mesh.position.x) > 45 || Math.abs(p.mesh.position.z) > 45) {
+          p.moveDir.multiplyScalar(-1);
+        }
+
+        // Collision with player
+        if (p.mesh.position.distanceTo(this.camera.position) < 2) {
+          if (p.type === 'health') {
+            this.player.heal(30);
+            this.showNotification("30 HP INCREASED");
+          } else {
+            this.player.addAmmo(15);
+            this.showNotification("15 AMMO ADDED");
+          }
+
+          this.scene.remove(p.mesh);
+          return false;
+        }
+        return true;
+      });
 
       this.player.update(delta);
       this.enemies.forEach(enemy => enemy.update(delta));
@@ -132,6 +204,22 @@ class Game {
     const scale = 1.0; // 1 unit in 3D = 1 pixel on map (zoomed in)
 
     ctx.clearRect(0, 0, size, size);
+
+    // Proximity Check for minimap hint
+    let nearPickup = false;
+    this.pickups.forEach(p => {
+      if (p.mesh.position.distanceTo(this.camera.position) < 20) {
+        nearPickup = true;
+      }
+    });
+
+    if (nearPickup) {
+      canvas.style.borderColor = '#ffff00';
+      canvas.style.boxShadow = '0 0 20px rgba(255, 255, 0, 0.8)';
+    } else {
+      canvas.style.borderColor = '#0ff';
+      canvas.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.3)';
+    }
 
     // Draw Player (Green Dot)
     const px = this.camera.position.x;
@@ -181,8 +269,23 @@ class Game {
     ctx.stroke();
   }
 
+  showNotification(message) {
+    const area = document.getElementById('notification-area');
+    if (!area) return;
+
+    const el = document.createElement('div');
+    el.className = 'game-notification';
+    el.innerText = message;
+    area.appendChild(el);
+
+    setTimeout(() => {
+      if (el.parentNode) area.removeChild(el);
+    }, 2000);
+  }
+
   updateLevel(newLevel) {
     this.currentLevel = newLevel;
+    this.showNotification(`GETTING TO LEVEL ${newLevel}`);
     const levelDisplay = document.getElementById('level');
     if (levelDisplay) levelDisplay.innerText = newLevel;
 

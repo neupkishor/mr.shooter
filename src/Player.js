@@ -204,6 +204,11 @@ export class Player {
         this.updateHealthUI();
     }
 
+    addAmmo(amount) {
+        this.ammo += amount;
+        document.getElementById('ammo').innerText = this.ammo;
+    }
+
     updateHealthUI() {
         const healthBar = document.getElementById('health-bar');
         const healthText = document.getElementById('health-text');
