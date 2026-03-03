@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { audioManager } from './AudioManager';
 
 export const WEAPON_TYPES = {
     PISTOL: { name: 'Pistol', range: 50, color: 0x333333, size: [0.15, 0.15, 0.6] },
@@ -55,6 +56,11 @@ export class Weapon {
     shoot() {
         if (this.isShooting) return;
         this.isShooting = true;
+
+        // Play Sound
+        if (this.currentType === WEAPON_TYPES.PISTOL) audioManager.playPistol();
+        else if (this.currentType === WEAPON_TYPES.SHOTGUN) audioManager.playShotgun();
+        else if (this.currentType === WEAPON_TYPES.SNIPER) audioManager.playSniper();
 
         const originalZ = this.mesh.position.z;
         this.mesh.position.z += 0.05;

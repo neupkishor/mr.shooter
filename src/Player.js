@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { audioManager } from './AudioManager';
 import { Weapon, WEAPON_TYPES } from './Weapon';
 
 export class Player {
@@ -187,6 +188,7 @@ export class Player {
     takeDamage(amount) {
         if (this.isDead) return;
 
+        audioManager.playHit();
         this.health -= amount;
         this.health = Math.max(0, this.health);
         this.updateHealthUI();

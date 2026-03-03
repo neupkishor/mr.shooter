@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { audioManager } from './AudioManager';
 
 export class Enemy {
     constructor(scene, player, world, level = 1) {
@@ -83,6 +84,7 @@ export class Enemy {
     }
 
     shoot() {
+        audioManager.playEnemyShot();
         const playerPos = this.player.camera.position;
         const enemyHeadPos = this.mesh.position.clone();
         enemyHeadPos.y = 1.5;
