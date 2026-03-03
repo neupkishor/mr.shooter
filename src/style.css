@@ -314,6 +314,66 @@ span {
   color: #fff;
 }
 
+.server-info {
+  margin-bottom: 20px;
+  color: #f0f;
+  font-family: monospace;
+  font-size: 14px;
+  background: rgba(255, 0, 255, 0.1);
+  padding: 5px 15px;
+  border: 1px dashed #f0f;
+  border-radius: 4px;
+}
+
+#player-name-input {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #0ff;
+  color: #0ff;
+  padding: 15px;
+  font-size: 24px;
+  font-family: 'Outfit', sans-serif;
+  text-align: center;
+  margin-bottom: 20px;
+  width: 300px;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+#multiplayer-scoreboard {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border-left: 4px solid #f0f;
+  padding: 15px;
+  width: 200px;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.score-header {
+  color: #f0f;
+  font-size: 12px;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+#rankings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: monospace;
+  font-size: 14px;
+  color: #fff;
+}
+
+.ranking-item {
+  display: flex;
+  justify-content: space-between;
+}
+
 #stats-right {
   position: absolute;
   bottom: 20px;

@@ -3,6 +3,8 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import { Player } from './Player';
 import { World } from './World';
 import { Enemy } from './Enemy';
+import { Rival } from './Rival';
+import { io } from 'socket.io-client';
 
 class Game {
   constructor() {
@@ -46,6 +48,10 @@ class Game {
     this.difficulty = localStorage.getItem('funny_shooter_difficulty') || 'medium';
     this.highScores = JSON.parse(localStorage.getItem('funny_shooter_scores')) || [];
 
+    // Multiplayer initialization
+    this.rivals = {};
+    this.initSocket();
+
     this.initLights();
     this.setupEventListeners();
     this.updateLeaderboardUI();
@@ -61,9 +67,118 @@ class Game {
     this.scene.add(directionalLight);
   }
 
+  initSocket() {
+    // Connect to the local Node server (runs on port 3000)
+    this.socket = io(`http://${window.location.hostname}:3000`);
+
+    this.socket.on('currentPlayers', (players) => {
+      Object.keys(players).forEach((id) => {
+        if (id !== this.socket.id && players[id].name !== "Anonymous") {
+          this.rivals[id] = new Rival(this.scene, id, players[id]);
+        }
+      });
+    });
+
+    this.socket.on('scoreUpdate', (rankings) => {
+      this.updateMultiplayerScoreboardUI(rankings);
+    });
+
+    this.socket.on('newPlayer', (playerData) => {
+      this.rivals[playerData.id] = new Rival(this.scene, playerData.id, playerData);
+      this.showNotification(`NEW PLAYER: ${playerData.name}`);
+    });
+
+    this.socket.on('playerMoved', (data) => {
+      if (this.rivals[data.id]) {
+        this.rivals[data.id].updatePosition(data.position, data.rotation);
+      }
+    });
+
+    this.socket.on('playerDisconnected', (id) => {
+      if (this.rivals[id]) {
+        this.rivals[id].remove();
+        delete this.rivals[id];
+      }
+    });
+
+    this.socket.on('healthUpdate', (data) => {
+      if (data.id === this.socket.id) {
+        this.player.health = data.health;
+        this.player.updateHealthUI();
+      } else if (this.rivals[data.id]) {
+        this.rivals[data.id].updateHealth(data.health);
+      }
+    });
+
+    this.socket.on('playerDeath', (data) => {
+      if (data.victimId === this.socket.id) {
+        this.showNotification(`KILLED BY RIVAL!`);
+        this.player.die();
+      }
+    });
+
+    this.socket.on('playerRespawned', (data) => {
+      if (data.id === this.socket.id) {
+        this.player.health = 100;
+        this.player.isDead = false;
+        this.camera.position.set(data.position.x, data.position.y, data.position.z);
+        this.player.updateHealthUI();
+      } else if (this.rivals[data.id]) {
+        this.rivals[data.id].respawn(data.position);
+      }
+    });
+
+    // Hook up player hit detection to broadcast
+    this.player.onRivalHit = (rivalId) => {
+      this.socket.emit('playerHit', { victimId: rivalId, damage: 15 });
+      this.showNotification("HIT RIVAL!");
+    };
+  }
+
+  updateMultiplayerScoreboardUI(rankings) {
+    const list = document.getElementById('rankings-list');
+    if (!list) return;
+    list.innerHTML = rankings
+      .map((r, i) => `
+              <div class="ranking-item">
+                  <span>${i + 1}. ${r.name}</span>
+                  <span>${r.score}</span>
+              </div>
+          `).join('');
+  }
+
+  startMultiplayer(name) {
+    this.gameState = 'PLAYING';
+    document.getElementById('name-screen').style.display = 'none';
+    document.getElementById('multiplayer-scoreboard').style.display = 'block';
+    this.controls.lock();
+
+    this.socket.emit('join', { name: name });
+  }
+
   setupEventListeners() {
     // Menu Buttons
     document.getElementById('start-mission-btn').addEventListener('click', () => this.startGame());
+
+    document.getElementById('multiplayer-btn').addEventListener('click', () => {
+      document.getElementById('main-menu').style.display = 'none';
+      document.getElementById('name-screen').style.display = 'flex';
+    });
+
+    document.getElementById('join-multiplayer-btn').addEventListener('click', () => {
+      const name = document.getElementById('player-name-input').value.trim();
+      if (name) {
+        this.startMultiplayer(name);
+      } else {
+        this.showNotification("PLEASE ENTER A CODENAME");
+      }
+    });
+
+    document.getElementById('back-from-name-btn').addEventListener('click', () => {
+      document.getElementById('name-screen').style.display = 'none';
+      document.getElementById('main-menu').style.display = 'flex';
+    });
+
     document.getElementById('open-settings-btn').addEventListener('click', () => {
       document.getElementById('main-menu').style.display = 'none';
       document.getElementById('settings-screen').style.display = 'flex';
@@ -73,7 +188,13 @@ class Game {
       document.getElementById('main-menu').style.display = 'flex';
     });
     document.getElementById('restart-button').addEventListener('click', () => {
-      location.reload();
+      if (this.socket && this.socket.connected) {
+        this.socket.emit('playerRespawn');
+        document.getElementById('game-over-screen').style.display = 'none';
+        this.controls.lock();
+      } else {
+        location.reload();
+      }
     });
     document.getElementById('menu-from-death-btn').addEventListener('click', () => {
       location.reload(); // Simplest way to reset for now
@@ -286,6 +407,14 @@ class Game {
 
       this.player.update(delta);
       this.enemies.forEach(enemy => enemy.update(delta));
+
+      // Synchronize movement to server
+      if (this.socket && this.socket.connected) {
+        this.socket.emit('playerMovement', {
+          position: { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z },
+          rotation: { y: this.camera.rotation.y }
+        });
+      }
 
       // Update Right Side Stats
       const enemiesAlive = this.enemies.filter(e => !e.isDead).length;

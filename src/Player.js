@@ -110,7 +110,15 @@ export class Player {
                 scoreElement.innerText = parseInt(scoreElement.innerText) + 50;
                 break;
             }
+            if (obj.userData.isRival) {
+                if (this.onRivalHit) this.onRivalHit(obj.userData.rivalId);
+                break;
+            }
         }
+    }
+
+    onRivalHit(rivalId) {
+        // This will be overridden by Game class to send socket event
     }
 
     onHit(target) {
