@@ -319,7 +319,19 @@ class Game {
 
     ctx.clearRect(0, 0, size, size);
 
-    // Proximity Check for minimap hint
+    // Save context for rotation
+    ctx.save();
+    ctx.translate(center, center);
+
+    // Rotate map so player's view is always UP
+    // We rotate by -rotation.y because we want the world to rotate around us
+    const playerRotY = this.camera.rotation.y;
+    ctx.rotate(-playerRotY);
+
+    const px = this.camera.position.x;
+    const pz = this.camera.position.z;
+
+    // Proximity Check (uses 3D distance, unaffected by map rotation logic)
     let nearPickup = false;
     this.pickups.forEach(p => {
       if (p.mesh.position.distanceTo(this.camera.position) < 20) {
@@ -331,7 +343,6 @@ class Game {
       canvas.style.borderColor = '#ffff00';
       canvas.style.boxShadow = '0 0 20px rgba(255, 255, 0, 0.8)';
     } else if (this.activeMachineGun && Math.floor(now / 200) % 2 === 0) {
-      // Blinking minimap for Machine Gun
       canvas.style.borderColor = '#ff00ff';
       canvas.style.boxShadow = '0 0 30px rgba(255, 0, 255, 1)';
     } else {
@@ -339,64 +350,61 @@ class Game {
       canvas.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.3)';
     }
 
-    // Draw Player (Green Dot)
-    const px = this.camera.position.x;
-    const pz = this.camera.position.z;
-
-    // Draw Machine Gun Object on Map
+    // Draw Machine Gun Object on Rotated Map
     if (this.activeMachineGun) {
-      const mx = this.activeMachineGun.mesh.position.x;
-      const mz = this.activeMachineGun.mesh.position.z;
-      const relX = (mx - px) * scale;
-      const relZ = (mz - pz) * scale;
+      const relX = (this.activeMachineGun.mesh.position.x - px) * scale;
+      const relZ = (this.activeMachineGun.mesh.position.z - pz) * scale;
       ctx.fillStyle = '#ff00ff';
       ctx.beginPath();
-      ctx.arc(center + relX, center + relZ, 6, 0, Math.PI * 2);
+      ctx.arc(relX, relZ, 6, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Draw all enemies
+    // Draw all enemies on Rotated Map
     this.enemies.forEach(enemy => {
       if (enemy.isDead) return;
-
       const dist = enemy.mesh.position.distanceTo(this.camera.position);
 
-      // ONLY SHOW ENEMIES IN THEIR ATTACK RANGE
       if (dist <= enemy.maxRange) {
-        const ex = enemy.mesh.position.x;
-        const ez = enemy.mesh.position.z;
+        const relX = (enemy.mesh.position.x - px) * scale;
+        const relZ = (enemy.mesh.position.z - pz) * scale;
 
-        // Coordinates relative to player
-        const relX = (ex - px) * scale;
-        const relZ = (ez - pz) * scale;
-
-        // Draw Red Dot
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
-        ctx.arc(center + relX, center + relZ, 4, 0, Math.PI * 2);
+        ctx.arc(relX, relZ, 4, 0, Math.PI * 2);
         ctx.fill();
 
-        // Subtle pulse for enemies in range
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
         ctx.lineWidth = 1;
         ctx.stroke();
       }
     });
 
-    // Draw Player Center Dot
+    // Restore rotation before drawing static player indicators
+    ctx.restore();
+
+    // Draw Player Center Dot (Static middle)
     ctx.fillStyle = '#00ff00';
     ctx.beginPath();
     ctx.arc(center, center, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw View Direction Cone
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+    // Draw Static View Direction Indicator (Facing UP)
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
     ctx.lineWidth = 2;
-    const angle = this.camera.rotation.y;
     ctx.beginPath();
     ctx.moveTo(center, center);
-    ctx.lineTo(center - Math.sin(angle) * 15, center - Math.cos(angle) * 15);
+    ctx.lineTo(center, center - 20); // Always point UP
     ctx.stroke();
+
+    // Subtle North indicator
+    ctx.save();
+    ctx.translate(center, center);
+    ctx.rotate(-playerRotY);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.font = '10px monospace';
+    ctx.fillText('N', 0, -center + 15);
+    ctx.restore();
   }
 
   showNotification(message) {
