@@ -24,6 +24,8 @@ export class Player {
         this.weapon = new Weapon(this.camera, this.scene);
         this.raycaster = new THREE.Raycaster();
 
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
         this.isMachineGunMode = false;
         this.machineGunTimer = 0;
         this.machineGunBullets = 0;
@@ -31,6 +33,7 @@ export class Player {
         this.isMouseDown = false;
 
         this.setupControls();
+        this.setupTouchControls();
     }
 
     setupControls() {
@@ -76,6 +79,80 @@ export class Player {
         document.addEventListener('mouseup', () => {
             this.isMouseDown = false;
         });
+    }
+
+    setupTouchControls() {
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.classList.contains('ctrl-btn')) return;
+            touchStartX = e.touches[0].pageX;
+            touchStartY = e.touches[0].pageY;
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (e.target.classList.contains('ctrl-btn')) return;
+            const touchX = e.touches[0].pageX;
+            const touchY = e.touches[0].pageY;
+
+            const dx = touchX - touchStartX;
+            const dy = touchY - touchStartY;
+
+            const sensitivity = 0.005;
+            this.camera.rotation.y -= dx * sensitivity;
+            this.camera.rotation.x -= dy * sensitivity;
+            this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
+
+            touchStartX = touchX;
+            touchStartY = touchY;
+        }, { passive: false });
+
+        const bindBtn = (id, keyAttr) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); this[keyAttr] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); this[keyAttr] = false; });
+        };
+
+        bindBtn('btn-up', 'moveForward');
+        bindBtn('btn-down', 'moveBackward');
+        bindBtn('btn-left', 'rotateLeft');
+        bindBtn('btn-right', 'rotateRight');
+
+        const shootBtn = document.getElementById('btn-shoot');
+        if (shootBtn) {
+            shootBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.isMouseDown = true;
+                if (!this.isMachineGunMode) this.shoot();
+            });
+            shootBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.isMouseDown = false;
+            });
+        }
+
+        const jumpBtn = document.getElementById('btn-jump');
+        if (jumpBtn) {
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.canJump) this.velocity.y += 25;
+                this.canJump = false;
+            });
+        }
+
+        const weaponBtn = document.getElementById('btn-weapon');
+        if (weaponBtn) {
+            let weaponIdx = 0;
+            const weapons = [WEAPON_TYPES.PISTOL, WEAPON_TYPES.SHOTGUN, WEAPON_TYPES.SNIPER];
+            weaponBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                weaponIdx = (weaponIdx + 1) % weapons.length;
+                this.weapon.switchWeapon(weapons[weaponIdx]);
+                document.getElementById('weapon-name').innerText = weapons[weaponIdx].name;
+            });
+        }
     }
 
     shoot() {
@@ -148,7 +225,7 @@ export class Player {
         delta = Math.min(delta, 0.1);
         if (delta === 0) delta = 0.016;
 
-        if (!this.controls.isLocked) return;
+        if (!this.controls.isLocked && !this.isMobile) return;
 
         // Rotation (A/D) - Fixed direction
         const rotationSpeed = 2.5;

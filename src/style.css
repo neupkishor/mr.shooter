@@ -392,3 +392,193 @@ span {
 #stats-right div {
   margin: 5px 0;
 }
+
+/* Mobile Controls */
+#mobile-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 220px;
+  pointer-events: none;
+  display: none;
+  z-index: 200;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.dpad {
+  position: absolute;
+  bottom: 30px;
+  left: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.dpad-mid {
+  display: flex;
+  gap: 5px;
+}
+
+.action-btns {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: flex-end;
+  pointer-events: auto;
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ctrl-btn {
+  width: 60px;
+  height: 60px;
+  background: rgba(0, 255, 255, 0.15) !important;
+  border: 1px solid #0ff !important;
+  color: #0ff !important;
+  border-radius: 50% !important;
+  font-size: 16px !important;
+  font-weight: 900;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 !important;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.ctrl-btn:active {
+  background: rgba(0, 255, 255, 0.6) !important;
+  color: #000 !important;
+  transform: scale(0.95);
+}
+
+.shoot-btn {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 0, 0, 0.15) !important;
+  border: 4px solid #f00 !important;
+  color: #f00 !important;
+  font-size: 20px !important;
+}
+
+.shoot-btn:active {
+  background: rgba(255, 0, 0, 0.6) !important;
+  color: #000 !important;
+}
+
+/* Tablet & Mobile Responsiveness */
+@media screen and (max-width: 900px) {
+  #mobile-controls {
+    display: block;
+  }
+
+  .glitch {
+    font-size: 32px !important;
+  }
+
+  .overlay h1 {
+    font-size: 20px;
+  }
+
+  .primary-btn {
+    padding: 10px 20px !important;
+    font-size: 14px !important;
+  }
+
+  .leaderboard {
+    width: 140px;
+    padding: 8px;
+    font-size: 10px;
+    margin-bottom: 20px;
+  }
+
+  .leaderboard h3 {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  #high-scores-list {
+    font-size: 11px;
+  }
+
+  #high-scores-list li {
+    margin: 2px 0;
+  }
+
+  .controls-hint {
+    display: none;
+  }
+
+  .server-info {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  #stats {
+    font-size: 10px;
+    padding: 6px;
+    bottom: 210px;
+    left: 10px;
+    width: 110px;
+    border-left-width: 2px;
+  }
+
+  #stats-right {
+    font-size: 10px;
+    padding: 6px;
+    bottom: 210px;
+    right: 10px;
+    border-right-width: 2px;
+  }
+
+  .health-container {
+    width: 80px;
+    height: 10px;
+    margin-bottom: 5px;
+  }
+
+  #health-text {
+    font-size: 8px;
+    line-height: 10px;
+  }
+
+  #minimap {
+    width: 70px;
+    height: 70px;
+    top: 5px;
+    right: 5px;
+    border-width: 2px;
+  }
+
+  #multiplayer-scoreboard {
+    width: 90px;
+    font-size: 9px;
+    left: 5px;
+    top: 5px;
+    padding: 5px;
+    border-left-width: 2px;
+  }
+
+  #notification-area {
+    top: 12%;
+    width: 90%;
+  }
+
+  .game-notification {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+}
