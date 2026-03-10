@@ -20,6 +20,7 @@ export class Player {
         this.ammo = 30;
         this.health = 100;
         this.isDead = false;
+        this.lastHitSoundTime = 0;
 
         this.weapon = new Weapon(this.camera, this.scene);
         this.raycaster = new THREE.Raycaster();
@@ -159,6 +160,9 @@ export class Player {
         if (!this.isMachineGunMode && this.ammo <= 0) return;
 
         this.weapon.shoot();
+
+        // Broadcast shot to others
+        if (this.onShoot) this.onShoot();
 
         if (this.isMachineGunMode) {
             this.machineGunBullets--;
@@ -309,7 +313,11 @@ export class Player {
     takeDamage(amount) {
         if (this.isDead) return;
 
-        audioManager.playHit();
+        const now = Date.now();
+        if (now - this.lastHitSoundTime > 300) {
+            audioManager.playHit();
+            this.lastHitSoundTime = now;
+        }
         this.health -= amount;
         this.health = Math.max(0, this.health);
         this.updateHealthUI();

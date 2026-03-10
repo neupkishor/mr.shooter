@@ -1,6 +1,8 @@
 export class AudioManager {
     constructor() {
         this.ctx = null;
+        this.lastSoundTime = {};
+        this.minInterval = 50; // min 50ms between same sound
     }
 
     _init() {
@@ -17,31 +19,20 @@ export class AudioManager {
         return this.ctx;
     }
 
-    playPistol() {
-        this._playNoise(0.05, 0.1, 400, 50, 'square');
-    }
+    playPistol() { this._playNoise(0.05, 0.1, 400, 50, 'square', 'pistol'); }
+    playShotgun() { this._playNoise(0.2, 0.3, 200, 20, 'sawtooth', 'shotgun'); }
+    playSniper() { this._playNoise(0.1, 0.4, 800, 100, 'sine', 'sniper'); }
+    playEnemyShot() { this._playNoise(0.05, 0.15, 600, 300, 'triangle', 'enemyShot'); }
+    playHit() { this._playNoise(0.1, 0.2, 100, 10, 'sine', 'hit'); }
+    playMachineGun() { this._playNoise(0.08, 0.1, 300, 100, 'square', 'machineGun'); }
 
-    playShotgun() {
-        this._playNoise(0.2, 0.3, 200, 20, 'sawtooth');
-    }
+    _playNoise(volume, duration, freqStart, freqEnd, type, soundId) {
+        const now = Date.now();
+        if (soundId && this.lastSoundTime[soundId] && now - this.lastSoundTime[soundId] < this.minInterval) {
+            return; // Throttled
+        }
+        this.lastSoundTime[soundId] = now;
 
-    playSniper() {
-        this._playNoise(0.1, 0.4, 800, 100, 'sine');
-    }
-
-    playEnemyShot() {
-        this._playNoise(0.05, 0.15, 600, 300, 'triangle');
-    }
-
-    playHit() {
-        this._playNoise(0.1, 0.2, 100, 10, 'sine');
-    }
-
-    playMachineGun() {
-        this._playNoise(0.08, 0.1, 300, 100, 'square');
-    }
-
-    _playNoise(volume, duration, freqStart, freqEnd, type) {
         const ctx = this._init();
         if (!ctx) return;
 
@@ -64,6 +55,12 @@ export class AudioManager {
 
         osc.start();
         osc.stop(ctx.currentTime + duration);
+
+        // Cleanup
+        osc.onended = () => {
+            osc.disconnect();
+            gain.disconnect();
+        };
     }
 }
 

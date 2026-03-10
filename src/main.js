@@ -74,9 +74,21 @@ class Game {
     this.socket.on('currentPlayers', (players) => {
       Object.keys(players).forEach((id) => {
         if (id !== this.socket.id && players[id].name !== "Anonymous") {
-          this.rivals[id] = new Rival(this.scene, id, players[id]);
+          if (!this.rivals[id]) {
+            this.rivals[id] = new Rival(this.scene, id, players[id]);
+          }
         }
       });
+    });
+
+    this.socket.on('playerFired', (data) => {
+      if (this.rivals[data.id]) {
+        // Play sound based on distance for a 3D effect spatialized feel
+        const dist = this.camera.position.distanceTo(this.rivals[data.id].mesh.position);
+        if (dist < 50) {
+          audioManager.playPistol(); // For now use pistol sound for all rivals
+        }
+      }
     });
 
     this.socket.on('scoreUpdate', (rankings) => {
@@ -84,8 +96,10 @@ class Game {
     });
 
     this.socket.on('newPlayer', (playerData) => {
-      this.rivals[playerData.id] = new Rival(this.scene, playerData.id, playerData);
-      this.showNotification(`NEW PLAYER: ${playerData.name}`);
+      if (!this.rivals[playerData.id]) {
+        this.rivals[playerData.id] = new Rival(this.scene, playerData.id, playerData);
+        this.showNotification(`NEW PLAYER: ${playerData.name}`);
+      }
     });
 
     this.socket.on('playerMoved', (data) => {
@@ -127,6 +141,16 @@ class Game {
         this.rivals[data.id].respawn(data.position);
       }
     });
+
+    this.player.onShoot = () => {
+      if (this.socket && this.socket.connected) {
+        this.socket.emit('playerShoot', {
+          origin: this.camera.position,
+          direction: this.camera.getWorldDirection(new THREE.Vector3()),
+          range: this.player.weapon.currentType.range
+        });
+      }
+    };
 
     // Hook up player hit detection to broadcast
     this.player.onRivalHit = (rivalId) => {
